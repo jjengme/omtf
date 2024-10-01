@@ -38,3 +38,5 @@ wi_a = average_image/np.max(average_image)
 # cv.imshow('wi_a',wi_a)
 # cv.waitKey()
 # cv.destroyAllWindows() 
+
+# push check
