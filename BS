@@ -1,0 +1,32 @@
+import sys
+import numpy as np
+import cv2
+
+# 영상 파일 불러오기
+cap = cv2.VideoCapture('c_cine.avi')
+
+ret, back = cap.read()
+back = cv2.cvtColor(back, cv2.COLOR_BGR2GRAY)
+fback = back.astype(np.float32)
+
+while True :
+    _, frame = cap.read()
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    cv2.accumulateWeighted(gray, fback, 0.01)
+    back = fback.astype(np.uint8)
+    diff = cv2.absdiff(gray, back)
+    _, diff = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
+    
+    contours, _ = cv2.findContours(diff, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < 70:
+            continue
+        cv2.drawContours(frame, [contour], -1, (0,255,0),2)
+
+    cv2.imshow('frame',frame)
+    cv2.imshow('back', back)
+
+    if cv2.waitKey(200) == 27 : 
+        break
