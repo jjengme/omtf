@@ -1,0 +1,32 @@
+# 준비된 cine파일 모두 동영상으로 만들기
+
+import glob
+import numpy as np
+from pyphantom import Phantom
+from basicfunctions import cine2nparrall, save_movie_nparr
+import os
+
+ph = Phantom()
+
+# 폴더 내 .cine 파일 목록 불러오기
+files = glob.glob('E:/omtf/cine/test_cine_file/*.cine')
+
+if not files:
+    print("No .cine files found.")
+    exit()
+
+for file_path in files:
+    print(f"Processing file: {file_path}")
+
+    # cine 파일을 Numpy 배열로 변환
+    raw = cine2nparrall(file_path)
+    if not isinstance(raw, np.ndarray):
+        print(f"Error: cine2nparrall did not return a valid array for {file_path}")
+        continue
+
+    # 출력 비디오 파일 이름 (cine 파일의 확장자 제거)
+    output_video_filename = os.path.splitext(file_path)[0] + '.avi'
+
+    # 원본 cine 파일을 영상으로 저장
+    save_movie_nparr(raw, output_video_filename, 10)  # 10은 프레임 속도
+    print(f"Saved video to: {output_video_filename}")
