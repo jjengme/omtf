@@ -1,0 +1,114 @@
+# 동영상을 이용해 이진화 -> 외곽선 검출 -> 데이터 엑셀로 저장
+
+import sys
+import numpy as np
+import cv2
+import pandas as pd
+import glob
+import os
+
+# # .avi 파일 목록 불러오기
+files = glob.glob('E:/omtf/cine/test_cine_file/*.avi')
+
+if not files:
+    print("No .avi files found.")
+    exit()
+
+# 각 파일에 대해 처리
+for file in files:
+    print(f"Processing file: {file}")
+    
+    # 영상 파일 불러오기
+    cap = cv2.VideoCapture(file)
+
+    # 배경 초기화
+    ret, back = cap.read()
+    if not ret:
+        print(f"Failed to read the first frame of {file}")
+        continue
+
+    back = cv2.cvtColor(back, cv2.COLOR_BGR2GRAY)
+    fback = back.astype(np.float32)
+
+    # 비디오 메타데이터
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    frame_number = 0
+
+    # 저장할 데이터 초기화
+    contour_data = []
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        frame_number += 1
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # 배경 업데이트 및 차영상 생성
+        cv2.accumulateWeighted(gray, fback, 0.01)
+        back = fback.astype(np.uint8)
+        diff = cv2.absdiff(gray, back)
+        _, diff = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
+
+        # 외곽선 검출
+        contours, _ = cv2.findContours(diff, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area < 90:
+                continue
+
+            # 외곽선 중심 좌표 계산
+            M = cv2.moments(contour)
+            if M["m00"] == 0:  # 중심 계산 오류 방지
+                continue
+            center_x = int(M["m10"] / M["m00"])
+            center_y = int(M["m01"] / M["m00"])
+
+            # Bounding Box 계산 (폭, 높이)
+            x, y, w, h = cv2.boundingRect(contour)
+
+            if w < 7 or h < 7:  # 면적, 폭, 높이 기준으로 작은 노이즈 무시
+                continue
+
+            # 외곽선 그리기
+            cv2.drawContours(frame, [contour], -1, (0, 255, 0), -1)
+            cv2.rectangle(
+                frame, (x, y), (x + w, y + h), (255, 0, 0), 2
+            )  # Bounding Box 표시
+
+            # 데이터 저장
+            contour_data.append(
+                {
+                    "Frame": frame_number,
+                    "Time(s)": frame_number / fps,
+                    "Center_X": center_x,
+                    "Center_Y": center_y,
+                    "Contour_Area": area,
+                    "Width": w,
+                    "Height": h,
+                }
+            )
+
+        # 결과 출력
+        cv2.imshow(f"Frame with Contours - {file}", frame)
+        cv2.imshow(f"diff - {file}", diff)
+
+        # ESC 키로 종료
+        if cv2.waitKey(1) == 27:  # ESC 키를 누르면 종료
+            print("ESC pressed, saving data...")
+            break
+
+    # 영상 이름을 기반으로 엑셀 파일명 생성
+    output_excel_file = os.path.splitext(file)[0] + "_contour_data.xlsx"
+    
+    # 데이터를 엑셀 파일로 저장
+    df = pd.DataFrame(contour_data)
+    df.to_excel(output_excel_file, index_label="Index")
+    print(f"Saved contour data for {file} to {output_excel_file}")
+
+    # 리소스 해제
+    cap.release()
+
+# 리소스 해제
+cv2.destroyAllWindows()
