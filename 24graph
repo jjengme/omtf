@@ -1,0 +1,94 @@
+# 각 온도 압력별 버블 개수 그래프 그리기
+
+##############################엑셀 파일 저장############################
+import os
+import pandas as pd
+
+# 폴더 경로 설정
+directory = "D:/otmf/cine/2024xlsx"  #검출된 데이터 엑셀 파일을 모아둔 폴더
+
+# 키워드 리스트
+keywords = ["2bar", "3bar", "4bar", "5bar"]
+
+# 전체 결과 저장 리스트
+all_results = []
+
+# 키워드별 파일 처리
+for keyword in keywords:
+    print(f"\nProcessing files for keyword: {keyword}")
+    row_counts = []  # 각 키워드의 결과 저장 리스트
+
+    # 폴더 내 파일 탐색
+    for filename in os.listdir(directory):
+        # 파일 이름에 키워드가 포함되고 확장자가 .xlsx인 경우
+        if keyword in filename and filename.endswith(".xlsx"):
+            file_path = os.path.join(directory, filename)
+            try:
+                # 엑셀 파일 읽기
+                df = pd.read_excel(file_path)
+                # 결과 저장
+                row_counts.append(
+                    {"Keyword": keyword, "Filename": filename, "RowCount": len(df)}
+                )
+            except Exception as e:
+                print(f"Error reading {filename}: {e}")
+
+    # 키워드별 결과를 전체 결과에 추가
+    all_results.extend(row_counts)
+
+# 결과를 데이터프레임으로 정리
+result_df = pd.DataFrame(all_results)
+
+# 결과 출력
+print("\nFinal Result DataFrame:")
+print(result_df)
+
+# (선택 사항) 키워드별 총 행 개수 합계 계산
+if not result_df.empty:
+    total_rows_per_keyword = result_df.groupby("Keyword")["RowCount"].sum()
+    print("\nTotal rows per keyword:")
+    print(total_rows_per_keyword)
+else:
+    print("No matching files found.")
+
+
+# 결과를 엑셀 파일로 저장
+output_path = "D:/otmf/cine/processed_results.xlsx"  # 파일 저장할 폴더 경로
+result_df.to_excel(output_path, index=False)
+print(f"\nResults saved to Excel: {output_path}")
+
+###############################그래프 출력######################################
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# 엑셀 파일 경로
+file_path = "E:/omtf/cine/processed_results.xlsx"
+
+# 데이터 읽기
+data = pd.read_excel(file_path)
+
+# 그래프 생성
+plt.figure(figsize=(10, 6))
+
+# 2, 3, 4, 5bar에 대해 각각 선 그래프 그리기
+for keyword in ["2bar", "3bar", "4bar", "5bar"]:
+    subset = data[data["Keyword"] == keyword]
+
+    # 온도 순으로 정렬 (x축: 온도)
+    subset = subset.sort_values(by="Temp")
+
+    # 선 그래프 그리기
+    plt.plot(
+        subset["Temp"], subset["BubCount"], marker="o", label=f"{keyword} Pressure"
+    )
+
+# 그래프 설정
+plt.title("BubCount vs. Temperature for Different Pressures", fontsize=14)
+plt.xlabel("Temperature (°C)", fontsize=12)
+plt.ylabel("BubCount", fontsize=12)
+plt.legend(title="Pressure", fontsize=10)
+plt.grid(True)
+plt.tight_layout()
+
+# 그래프 출력
+plt.show()
